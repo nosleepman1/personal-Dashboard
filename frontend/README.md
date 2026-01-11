@@ -1,73 +1,230 @@
-# React + TypeScript + Vite
+# 📊 Frontend Dashboard Personnel
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interface utilisateur moderne et complète pour le Dashboard Personnel, construite avec React, TypeScript, Tailwind CSS et Shadcn UI.
 
-Currently, two official plugins are available:
+## 🚀 Démarrage Rapide
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Prérequis
 
-## React Compiler
+- Node.js (v18 ou supérieur)
+- npm ou yarn
+- Backend API en cours d'exécution (voir `/backend/README.md`)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Installation
 
-## Expanding the ESLint configuration
+```bash
+# Installer les dépendances
+npm install
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+# Créer le fichier .env à partir de .env.example
+cp .env.example .env
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Lancer le serveur de développement
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+L'application sera accessible sur `http://localhost:5173` (par défaut avec Vite).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 📁 Structure du Projet
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+frontend/
+├── src/
+│   ├── components/          # Composants réutilisables
+│   │   ├── ui/             # Composants Shadcn UI
+│   │   └── layout/         # Layouts (MainLayout, ProtectedRoute)
+│   ├── config/             # Configuration (API endpoints)
+│   ├── contexts/           # Contextes React (AuthContext)
+│   ├── lib/                # Utilitaires (api-client, format, utils)
+│   ├── pages/              # Pages de l'application
+│   ├── services/           # Services API
+│   │   └── api/           # Services pour chaque ressource
+│   ├── types/              # Types TypeScript
+│   ├── App.tsx             # Composant racine avec routing
+│   └── main.tsx            # Point d'entrée
+├── .env.example            # Exemple de fichier d'environnement
+└── package.json
+```
+
+## 🏗️ Architecture
+
+### Services API
+
+Tous les appels API sont centralisés dans `src/services/api/` :
+
+- **auth.service.ts** - Authentification (login, register, profile)
+- **debt.service.ts** - Gestion des dettes
+- **expense.service.ts** - Gestion des dépenses
+- **income.service.ts** - Gestion des recettes
+- **business.service.ts** - Gestion des entreprises
+- **contribution.service.ts** - Gestion des apports
+- **dashboard.service.ts** - Statistiques du dashboard
+
+Chaque service contient des méthodes pour les opérations CRUD, avec des commentaires détaillés expliquant chaque appel API.
+
+### Contexte d'Authentification
+
+Le contexte `AuthContext` (`src/contexts/AuthContext.tsx`) gère :
+- L'état d'authentification global
+- Le stockage du token JWT
+- Les méthodes `login`, `register`, `logout`
+- La mise à jour du profil utilisateur
+
+### Pages
+
+- **Login.tsx** - Page de connexion
+- **Register.tsx** - Page d'inscription
+- **Dashboard.tsx** - Dashboard principal avec statistiques
+
+### Composants Layout
+
+- **MainLayout.tsx** - Layout principal avec navigation
+- **ProtectedRoute.tsx** - Protection des routes authentifiées
+
+## 🔐 Authentification
+
+L'authentification utilise JWT. Le token est stocké dans le `localStorage` et ajouté automatiquement à toutes les requêtes via l'intercepteur axios (`src/lib/api-client.ts`).
+
+### Utilisation dans un composant
+
+```typescript
+import { useAuth } from '@/contexts/AuthContext';
+
+function MyComponent() {
+  const { user, isAuthenticated, login, logout } = useAuth();
+  
+  // ...
+}
+```
+
+## 📡 Appels API
+
+### Exemple: Créer une dépense
+
+```typescript
+import { expenseService } from '@/services/api';
+
+// Créer une dépense
+try {
+  const expense = await expenseService.create({
+    title: 'Courses',
+    amount: 50.00,
+    category: 'food',
+    paymentMethod: 'card'
+  });
+  console.log('Dépense créée:', expense);
+} catch (error) {
+  console.error('Erreur:', error);
+}
+```
+
+### Exemple: Récupérer le dashboard
+
+```typescript
+import { dashboardService } from '@/services/api';
+
+// Récupérer les statistiques
+try {
+  const stats = await dashboardService.getStats({
+    startDate: '2024-01-01',
+    endDate: '2024-01-31'
+  });
+  console.log('Balance nette:', stats.summary.netBalance);
+} catch (error) {
+  console.error('Erreur:', error);
+}
+```
+
+## 🎨 Composants UI
+
+L'application utilise [Shadcn UI](https://ui.shadcn.com/) pour les composants UI. Tous les composants sont disponibles dans `src/components/ui/`.
+
+### Composants disponibles
+
+- Button, Card, Input, Label
+- Badge, Skeleton, Avatar
+- DropdownMenu, Select, Dialog
+- Table, Tabs, Accordion
+- Et plus...
+
+## 📝 Formatage
+
+Des fonctions utilitaires sont disponibles dans `src/lib/format.ts` :
+
+- `formatCurrency(amount)` - Formate un montant en EUR
+- `formatDate(dateString)` - Formate une date
+- `formatDateTime(dateString)` - Formate une date avec l'heure
+
+## 🌐 Configuration
+
+### Variables d'environnement
+
+Créez un fichier `.env` à la racine du dossier `frontend` :
+
+```env
+# URL de l'API backend
+VITE_API_URL=http://localhost:3000
+```
+
+### Configuration API
+
+Les endpoints sont configurés dans `src/config/api.ts`. Vous pouvez modifier l'URL de base ou les endpoints si nécessaire.
+
+## 🔒 Protection des Routes
+
+Les routes protégées utilisent le composant `ProtectedRoute` :
+
+```typescript
+<Route
+  path="/dashboard"
+  element={
+    <ProtectedRoute>
+      <MainLayout>
+        <Dashboard />
+      </MainLayout>
+    </ProtectedRoute>
+  }
+/>
+```
+
+Si l'utilisateur n'est pas authentifié, il sera automatiquement redirigé vers `/login`.
+
+## 🛠️ Scripts Disponibles
+
+```bash
+# Développement
+npm run dev
+
+# Build de production
+npm run build
+
+# Preview du build
+npm run preview
+
+# Linting
+npm run lint
+```
+
+## 📦 Dépendances Principales
+
+- **react** - Framework UI
+- **react-router-dom** - Routing
+- **axios** - Client HTTP
+- **tailwindcss** - Styles
+- **lucide-react** - Icônes
+- **shadcn/ui** - Composants UI
+
+## 🎯 Prochaines Étapes
+
+Pour compléter l'application, vous pouvez ajouter :
+
+1. Pages pour chaque ressource (Dépenses, Recettes, Dettes, etc.)
+2. Formulaires de création/édition
+3. Tableaux avec pagination
+4. Graphiques (recharts est déjà installé)
+5. Filtres et recherche avancée
+6. Export de données (PDF, Excel)
+
+## 📄 Licence
+
+ISC
