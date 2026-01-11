@@ -37,22 +37,15 @@ API REST complète pour la gestion d'un dashboard personnel avec authentificatio
 npm install
 
 # Démarrer le serveur
-npm start
+npm run dev
 ```
 
 ## ⚙️ Configuration
 
 Créer un fichier `.env` à la racine du dossier `backend` :
+Coller les donnees de .env.example
 
-```env
-MONGO_URI=mongodb://localhost:27017/dashboard-personnel
-# ou pour MongoDB Atlas :
-# MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/dashboard-personnel
 
-PORT=3000
-
-JWT_SECRET=votre_secret_jwt_très_sécurisé_et_long
-```
 
 ## 🏗️ Architecture
 
@@ -97,23 +90,16 @@ Base URL : `/api/auth`
 
 **Description** : Crée un nouveau compte utilisateur et retourne un token JWT.
 
-**Authentification** : ❌ Non requise
-
 **Body (JSON)** :
 ```json
 {
-  "firstname": "Jean",
-  "lastname": "Dupont",
-  "email": "jean.dupont@example.com",
-  "password": "motdepasse123"
+  "firstname": "Souleymane",
+  "lastname": "Agne",
+  "email": "Agnesouleymane@example.com",
+  "password": "Passer1234"
 }
 ```
 
-**Validation** :
-- `firstname` : string, 2-30 caractères, requis
-- `lastname` : string, 2-30 caractères, requis
-- `email` : string, email valide, requis
-- `password` : string, minimum 6 caractères, requis
 
 **Réponse Succès (201)** :
 ```json
@@ -122,9 +108,9 @@ Base URL : `/api/auth`
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
     "id": "64f1a2b3c4d5e6f7g8h9i0j1",
-    "firstname": "Jean",
-    "lastname": "Dupont",
-    "email": "jean.dupont@example.com"
+    "firstname": "Souleymane",
+    "lastname": "Agne",
+    "email": "Agnesouleymane@example.com"
   }
 }
 ```
@@ -139,13 +125,12 @@ Base URL : `/api/auth`
 
 **Description** : Authentifie un utilisateur existant et retourne un token JWT.
 
-**Authentification** : ❌ Non requise
 
 **Body (JSON)** :
 ```json
 {
-  "email": "jean.dupont@example.com",
-  "password": "motdepasse123"
+  "email": "Agnesouleymane@example.com",
+  "password": "Passer1234"
 }
 ```
 
@@ -156,9 +141,9 @@ Base URL : `/api/auth`
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
     "id": "64f1a2b3c4d5e6f7g8h9i0j1",
-    "firstname": "Jean",
-    "lastname": "Dupont",
-    "email": "jean.dupont@example.com"
+    "firstname": "Souleymane",
+    "lastname": "Agne",
+    "email": "Agnesouleymane@example.com"
   }
 }
 ```
@@ -177,7 +162,7 @@ Base URL : `/api/users`
 
 **Description** : Récupère les informations du profil de l'utilisateur connecté.
 
-**Authentification** : ✅ Requise (Bearer Token)
+**Authentification** :  Requise (Bearer Token)
 
 **Réponse Succès (200)** :
 ```json
@@ -203,7 +188,7 @@ Base URL : `/api/users`
 
 **Description** : Met à jour les informations du profil de l'utilisateur connecté.
 
-**Authentification** : ✅ Requise (Bearer Token)
+**Authentification** :  Requise (Bearer Token)
 
 **Body (JSON)** - Tous les champs sont optionnels :
 ```json
@@ -242,7 +227,7 @@ Base URL : `/api/debts`
 
 **Description** : Crée une nouvelle dette pour l'utilisateur connecté.
 
-**Authentification** : ✅ Requise (Bearer Token)
+**Authentification** :  Requise (Bearer Token)
 
 **Body (JSON)** :
 ```json
