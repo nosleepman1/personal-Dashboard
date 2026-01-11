@@ -3,14 +3,14 @@
  * Gère les appels HTTP, l'authentification via tokens, et les erreurs
  */
 
-import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import axios, { type AxiosError } from 'axios';
 import { API_BASE_URL } from '@/config/api';
 
 /**
  * Crée une instance axios avec la configuration de base
  * Cette instance est utilisée pour tous les appels API
  */
-const apiClient: AxiosInstance = axios.create({
+const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
@@ -22,7 +22,7 @@ const apiClient: AxiosInstance = axios.create({
  * Le token est récupéré depuis le localStorage
  */
 apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+  (config) => {
     // Récupère le token depuis le localStorage
     const token = localStorage.getItem('token');
     

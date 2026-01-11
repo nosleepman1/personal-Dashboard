@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const app = express();
 require('dotenv').config();
 const connectDB = require('./src/database/database');
@@ -12,6 +13,14 @@ const incomeRoute = require('./src/routes/income.route');
 const businessRoute = require('./src/routes/business.route');
 const contributionRoute = require('./src/routes/contribution.route');
 const dashboardRoute = require('./src/routes/dashboard.route');
+
+// Middleware CORS - Permet les requêtes depuis le frontend
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173', // URL du frontend
+  credentials: true, // Permet l'envoi de cookies/headers d'authentification
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Méthodes HTTP autorisées
+  allowedHeaders: ['Content-Type', 'Authorization'] // Headers autorisés
+}));
 
 // Middleware
 app.use(express.json());

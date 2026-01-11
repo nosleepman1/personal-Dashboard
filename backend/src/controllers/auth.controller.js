@@ -13,7 +13,7 @@ const register = async (req, res) => {
 
         const token = jwt.sign(
             { userId: newUser._id },
-            process.env.JWT_SECRET || 'your-secret-key',
+            process.env.JWT_SECRET || 'LaTerreUnePlaneteDansLeSystemeSolaireEtKeplerUneAutre',
             { expiresIn: '7d' }
         );
 
