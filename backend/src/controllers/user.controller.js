@@ -1,22 +1,48 @@
 const User = require('../models/User.model');
-const userSchema = require('../middlewares/user.joi');
 
-const createUser = async (req, res) => {
+const getProfile = async (req, res) => {
     try {
-        const { error, value } = userSchema.validate(req.body);
-        if (error) {
-            return res.status(400).json({ error: error.details[0].message });
+        const user = await User.findById(req.user._id).select('-password');
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
         }
-        const existingUser = await User.findOne({ email: value.email });
-        if (existingUser) {
-            return res.status(409).json({ error: 'Email already in use' });
-        }
-        const newUser = new User(value);
-        await newUser.save();
-        res.status(201).json({ message: 'User created successfully', userId: newUser._id });
+        res.json({ user });
     } catch (err) {
+        console.error('Get profile error:', err);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
 
-module.exports = createUser;
+const updateProfile = async (req, res) => {
+    try {
+        const { firstname, lastname, email } = req.body;
+        const updates = {};
+
+        if (firstname) updates.firstname = firstname;
+        if (lastname) updates.lastname = lastname;
+        if (email) {
+            const existingUser = await User.findOne({ email, _id: { $ne: req.user._id } });
+            if (existingUser) {
+                return res.status(409).json({ error: 'Email already in use' });
+            }
+            updates.email = email;
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            updates,
+            { new: true, runValidators: true }
+        ).select('-password');
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({ message: 'Profile updated successfully', user });
+    } catch (err) {
+        console.error('Update profile error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+module.exports = { getProfile, updateProfile };
