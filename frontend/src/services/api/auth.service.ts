@@ -146,4 +146,17 @@ export const authService = {
       throw new Error(error.response?.data?.error || 'Erreur lors de la mise à jour du profil');
     }
   },
+
+  /**
+   * Déconnecte l'utilisateur côté serveur
+   * POST /api/auth/logout
+   * Supprime le cookie httpOnly contenant le refresh token
+   */
+  async logout(): Promise<void> {
+    try {
+      await apiClient.post(buildApiUrl(API_ENDPOINTS.AUTH.LOGOUT));
+    } catch {
+      // On ignore les erreurs de logout côté client, car on nettoie tout de toute façon
+    }
+  },
 };

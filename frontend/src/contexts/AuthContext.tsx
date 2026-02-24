@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authService } from '@/services/api';
 import type { User, LoginRequest, RegisterRequest } from '@/types';
+import { setAccessToken } from '@/lib/auth-token';
 
 /**
  * Interface pour le contexte d'authentification
@@ -66,21 +67,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        // Récupère le token depuis le localStorage
-        const token = localStorage.getItem('token');
-        
-        if (token) {
-          // Si un token existe, récupère les données utilisateur depuis l'API
-          try {
-            const userData = await authService.getProfile();
-            setUser(userData);
-          } catch (error) {
-            // Si le token est invalide, supprime-le
-            console.error('Token invalide:', error);
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-          }
-        }
+      // Tente de récupérer le profil utilisateur.
+      // Si un refresh token httpOnly est présent, l'intercepteur axios
+      // renouvellera d'abord le token d'accès puis la requête réussira.
+      const userData = await authService.getProfile();
+      setUser(userData);
       } catch (error) {
         console.error('Erreur lors de l\'initialisation de l\'authentification:', error);
       } finally {
@@ -115,9 +106,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Appelle le service d'authentification pour se connecter
       const response = await authService.login(data);
       
-      // Stocke le token dans le localStorage
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      // Stocke le token d'accès uniquement en mémoire
+      setAccessToken(response.accessToken);
       
       // Met à jour l'état utilisateur
       setUser(response.user);
@@ -154,9 +144,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Appelle le service d'authentification pour s'inscrire
       const response = await authService.register(data);
       
-      // Stocke le token dans le localStorage
-      localStorage.setItem('token', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      // Stocke le token d'accès uniquement en mémoire
+      setAccessToken(response.accessToken);
       
       // Met à jour l'état utilisateur
       setUser(response.user);
@@ -178,12 +167,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
    * ```
    */
   const logout = (): void => {
-    // Supprime le token et les données utilisateur du localStorage
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    
+    // Réinitialise le token d'accès en mémoire
+    setAccessToken(null);
     // Réinitialise l'état utilisateur
     setUser(null);
+    // Informe le backend pour supprimer le refresh token httpOnly
+    void authService.logout();
   };
 
   /**
@@ -211,8 +200,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Met à jour l'état utilisateur
       setUser(updatedUser);
       
-      // Met à jour le localStorage
-      localStorage.setItem('user', JSON.stringify(updatedUser));
     } catch (error: any) {
       // En cas d'erreur, la propage pour que le composant puisse la gérer
       throw error;
@@ -242,8 +229,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Met à jour l'état utilisateur
       setUser(userData);
       
-      // Met à jour le localStorage
-      localStorage.setItem('user', JSON.stringify(userData));
     } catch (error: any) {
       // En cas d'erreur, déconnecte l'utilisateur (token invalide)
       console.error('Erreur lors du rafraîchissement:', error);

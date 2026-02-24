@@ -20,7 +20,7 @@ export interface User {
  */
 export interface AuthResponse {
   message: string;
-  token: string;
+  accessToken: string;
   user: User;
 }
 
@@ -314,4 +314,11 @@ export interface DashboardStats {
 export interface ApiError {
   error: string;
   details?: string[];
+}
+
+/**
+ * Réponse lors du rafraîchissement du token d'accès
+ */
+export interface RefreshTokenResponse {
+  accessToken: string;
 }

@@ -10,6 +10,12 @@ import MainLayout from '@/components/layout/MainLayout';
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import Dashboard from '@/pages/Dashboard';
+import Expenses from '@/pages/Expenses';
+import Incomes from '@/pages/Incomes';
+import Debts from '@/pages/Debts';
+import Contributions from '@/pages/Contributions';
+import Businesses from '@/pages/Businesses';
+import Profile from '@/pages/Profile';
 
 /**
  * Composant racine de l'application
@@ -35,9 +41,69 @@ function App() {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute> 
+              <ProtectedRoute>
                 <MainLayout>
                   <Dashboard />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/expenses"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Expenses />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/incomes"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Incomes />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/debts"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Debts />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/contributions"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Contributions />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/businesses"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Businesses />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Profile />
                 </MainLayout>
               </ProtectedRoute>
             }
