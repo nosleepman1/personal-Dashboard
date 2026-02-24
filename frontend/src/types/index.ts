@@ -218,6 +218,40 @@ export interface ContributionsResponse {
 }
 
 /**
+ * Type pour les transactions d'entreprise
+ */
+export interface BusinessTransaction {
+  _id: string;
+  business: string;
+  user: string;
+  type: 'revenue' | 'expense';
+  title: string;
+  description?: string;
+  amount: number;
+  category?: string;
+  date: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface BusinessTransactionFormData {
+  type: 'revenue' | 'expense';
+  title: string;
+  description?: string;
+  amount: number;
+  category?: string;
+  date?: string;
+}
+
+export interface BusinessTransactionsResponse {
+  transactions: BusinessTransaction[];
+  totalRevenue: number;
+  totalExpenses: number;
+  profit: number;
+  count: number;
+}
+
+/**
  * Type pour le dashboard - statistiques agrégées
  */
 export interface DashboardSummary {
