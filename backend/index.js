@@ -1,5 +1,8 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 const app = express();
 require('dotenv').config();
 const connectDB = require('./src/database/database');
@@ -19,10 +22,19 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173', // URL du frontend
   credentials: true, // Permet l'envoi de cookies/headers d'authentification
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Méthodes HTTP autorisées
-  allowedHeaders: ['Content-Type', 'Authorization'] // Headers autorisés
+  allowedHeaders: ['Content-Type', 'Authorization'], // Headers autorisés
 }));
 
-// Middleware
+// Middleware de sécurité HTTP
+app.use(helmet());
+
+// Logger HTTP
+app.use(morgan('dev'));
+
+// Middleware pour parser les cookies (nécessaire pour les refresh tokens httpOnly)
+app.use(cookieParser());
+
+// Middleware de parsing JSON
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
