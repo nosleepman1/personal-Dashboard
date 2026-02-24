@@ -9,6 +9,7 @@ import { dashboardService } from '@/services/api';
 import type { DashboardStats } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import { TrendingUp, TrendingDown, DollarSign, CreditCard, Wallet, Building2, PiggyBank } from 'lucide-react';
 
 /**
@@ -65,6 +66,14 @@ export default function Dashboard() {
       style: 'currency',
       currency: 'EUR',
     }).format(amount);
+  };
+
+  /**
+   * Calcule un pourcentage sécurisé (évite les divisions par zéro)
+   */
+  const getPercent = (value: number, total: number): number => {
+    if (!total || total <= 0) return 0;
+    return (value / total) * 100;
   };
 
   // Affichage du chargement
@@ -225,6 +234,129 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Vue graphique synthétique */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Ratio Recettes vs Dépenses */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Flux de trésorerie</CardTitle>
+            <CardDescription>
+              Comparaison entre vos recettes et vos dépenses
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Recettes</span>
+              <span className="font-medium text-green-600">
+                {formatCurrency(stats.summary.totalIncomes)}
+              </span>
+            </div>
+            <Progress
+              value={getPercent(
+                stats.summary.totalIncomes,
+                stats.summary.totalIncomes + stats.summary.totalExpenses
+              )}
+              className="h-2"
+            />
+            <div className="flex items-center justify-between text-sm pt-2">
+              <span className="text-muted-foreground">Dépenses</span>
+              <span className="font-medium text-red-600">
+                {formatCurrency(stats.summary.totalExpenses)}
+              </span>
+            </div>
+            <Progress
+              value={getPercent(
+                stats.summary.totalExpenses,
+                stats.summary.totalIncomes + stats.summary.totalExpenses
+              )}
+              className="h-2 bg-red-100"
+            />
+
+            <div className="mt-4 rounded-lg border p-3 flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase text-muted-foreground tracking-wide">
+                  Résumé mensuel
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Solde après dépenses
+                </p>
+              </div>
+              <div className={`text-lg font-semibold ${stats.summary.netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(stats.summary.netBalance)}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Aperçu Business */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Performance des entreprises</CardTitle>
+            <CardDescription>
+              Revenus, dépenses et profits par business
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {stats.businesses.length > 0 ? (
+              <div className="space-y-4">
+                {stats.businesses.map((business) => (
+                  <div
+                    key={business.id}
+                    className="space-y-2 rounded-lg border p-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        {business.name}
+                      </p>
+                      <span
+                        className={`text-xs font-semibold px-2 py-1 rounded-full ${
+                          business.profit >= 0
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}
+                      >
+                        {business.profit >= 0 ? 'Profit' : 'Perte'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div>
+                        <p className="text-muted-foreground">Revenus</p>
+                        <p className="font-semibold text-green-600">
+                          {formatCurrency(business.revenue)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Dépenses</p>
+                        <p className="font-semibold text-red-600">
+                          {formatCurrency(business.expenses)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Résultat</p>
+                        <p
+                          className={`font-semibold ${
+                            business.profit >= 0
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                          }`}
+                        >
+                          {formatCurrency(business.profit)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-8">
+                Aucune entreprise enregistrée
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Section: Dépenses récentes */}
       <Card>
         <CardHeader>
@@ -262,6 +394,96 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Section: Répartition par catégorie (dépenses & recettes) */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Dépenses par catégorie */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Répartition des dépenses</CardTitle>
+            <CardDescription>
+              Montants dépensés par catégorie
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {Object.keys(stats.expenses.byCategory).length > 0 ? (
+              Object.entries(stats.expenses.byCategory).map(
+                ([category, amount]) => {
+                  const percent = getPercent(
+                    amount,
+                    stats.expenses.total
+                  );
+                  return (
+                    <div key={category} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="capitalize text-muted-foreground">
+                          {category}
+                        </span>
+                        <span className="font-medium">
+                          {formatCurrency(amount)}{' '}
+                          <span className="text-xs text-muted-foreground">
+                            ({percent.toFixed(1)}%)
+                          </span>
+                        </span>
+                      </div>
+                      <Progress value={percent} className="h-2" />
+                    </div>
+                  );
+                }
+              )
+            ) : (
+              <p className="text-muted-foreground text-center py-4">
+                Pas encore de dépenses catégorisées
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recettes par catégorie */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Répartition des recettes</CardTitle>
+            <CardDescription>
+              Montants reçus par catégorie
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {Object.keys(stats.incomes.byCategory).length > 0 ? (
+              Object.entries(stats.incomes.byCategory).map(
+                ([category, amount]) => {
+                  const percent = getPercent(
+                    amount,
+                    stats.incomes.total
+                  );
+                  return (
+                    <div key={category} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="capitalize text-muted-foreground">
+                          {category}
+                        </span>
+                        <span className="font-medium">
+                          {formatCurrency(amount)}{' '}
+                          <span className="text-xs text-muted-foreground">
+                            ({percent.toFixed(1)}%)
+                          </span>
+                        </span>
+                      </div>
+                      <Progress
+                        value={percent}
+                        className="h-2 bg-emerald-100"
+                      />
+                    </div>
+                  );
+                }
+              )
+            ) : (
+              <p className="text-muted-foreground text-center py-4">
+                Pas encore de recettes catégorisées
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Section: Recettes récentes */}
       <Card>
