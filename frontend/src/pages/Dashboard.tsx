@@ -1,553 +1,777 @@
 /**
- * Page Dashboard Principal
- * Affiche toutes les statistiques financières agrégées
- * Utilise le service dashboardService pour récupérer les données
+ * Dashboard Principal — version avec graphiques Recharts
  */
 
-import { useEffect, useState } from 'react';
-import { dashboardService } from '@/services/api';
-import type { DashboardStats } from '@/types';
+import { useDashboardStats } from '@/hooks/useDashboardStats';
+import type { DashboardBusiness } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Progress } from '@/components/ui/progress';
-import { TrendingUp, TrendingDown, DollarSign, CreditCard, Wallet, Building2, PiggyBank } from 'lucide-react';
+import {
+  TrendingUp,
+  TrendingDown,
+  CreditCard,
+  Wallet,
+  Building2,
+  PiggyBank,
+  ArrowUpRight,
+  ArrowDownRight,
+  Activity,
+} from 'lucide-react';
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  RadialBarChart,
+  RadialBar,
+} from 'recharts';
 
-/**
- * Composant principal du Dashboard
- * Affiche les statistiques financières complètes de l'utilisateur
- */
-export default function Dashboard() {
-  // État pour stocker les statistiques du dashboard
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  
-  // État de chargement - true pendant la requête API
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // État d'erreur - message d'erreur à afficher
-  const [error, setError] = useState<string>('');
+/* ─── helpers ──────────────────────────────────────────────── */
+const fmt = (n: number) =>
+  new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
 
-  /**
-   * Charge les statistiques du dashboard au chargement du composant
-   * GET /api/dashboard
-   */
-  useEffect(() => {
-    const loadStats = async () => {
-      try {
-        setIsLoading(true);
-        setError('');
-        
-        // Appelle le service dashboard pour récupérer toutes les statistiques
-        // Cette méthode appelle GET /api/dashboard
-        const data = await dashboardService.getStats();
-        
-        // Met à jour l'état avec les données reçues
-        setStats(data);
-      } catch (err: any) {
-        // En cas d'erreur, affiche le message d'erreur
-        setError(err.message || 'Erreur lors du chargement des statistiques');
-      } finally {
-        // Remet le chargement à false dans tous les cas
-        setIsLoading(false);
-      }
-    };
+const compactFmt = (n: number) => {
+  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M€`;
+  if (Math.abs(n) >= 1_000) return `${(n / 1_000).toFixed(1)}k€`;
+  return `${n.toFixed(0)}€`;
+};
 
-    // Appelle la fonction de chargement
-    loadStats();
-  }, []);
+/* ─── colour palettes ───────────────────────────────────────── */
+const EXPENSE_COLORS = [
+  '#f43f5e', '#fb923c', '#facc15', '#4ade80',
+  '#22d3ee', '#818cf8', '#e879f9', '#94a3b8', '#f97316',
+];
 
-  /**
-   * Formate un montant en format monétaire
-   * 
-   * @param amount - Montant à formater
-   * @returns String formatée (ex: "1 234,56 €")
-   */
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: 'EUR',
-    }).format(amount);
-  };
+const INCOME_COLORS = [
+  '#10b981', '#06b6d4', '#6366f1', '#f59e0b',
+  '#8b5cf6', '#3b82f6', '#ec4899',
+];
 
-  /**
-   * Calcule un pourcentage sécurisé (évite les divisions par zéro)
-   */
-  const getPercent = (value: number, total: number): number => {
-    if (!total || total <= 0) return 0;
-    return (value / total) * 100;
-  };
+/* ─── FR category labels ───────────────────────────────────── */
+const EXPENSE_LABELS: Record<string, string> = {
+  food: 'Alimentation', transport: 'Transport', housing: 'Logement',
+  entertainment: 'Divertissement', health: 'Santé', shopping: 'Shopping',
+  bills: 'Factures', education: 'Éducation', other: 'Autre',
+};
+const INCOME_LABELS: Record<string, string> = {
+  salary: 'Salaire', freelance: 'Freelance', investment: 'Investissement',
+  rental: 'Loyer', bonus: 'Prime', gift: 'Don', other: 'Autre',
+};
 
-  // Affichage du chargement
-  if (isLoading) {
-    return (
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-32 mt-2" />
-              </CardHeader>
-            </Card>
-          ))}
+/* ─── Custom tooltip ───────────────────────────────────────── */
+const CurrencyTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border bg-background/95 p-3 shadow-xl text-sm backdrop-blur-sm">
+      {label && <p className="font-semibold mb-1 text-foreground">{label}</p>}
+      {payload.map((p: any, i: number) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full" style={{ background: p.color }} />
+          <span className="text-muted-foreground">{p.name} :</span>
+          <span className="font-medium">{fmt(p.value)}</span>
         </div>
-      </div>
-    );
-  }
+      ))}
+    </div>
+  );
+};
 
-  // Affichage de l'erreur
+/* ─── Skeleton ──────────────────────────────────────────────── */
+function DashboardSkeleton() {
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i} className="animate-pulse">
+            <CardHeader className="pb-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-8 w-32 mt-2" />
+            </CardHeader>
+          </Card>
+        ))}
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i} className="animate-pulse">
+            <CardHeader><Skeleton className="h-5 w-40" /></CardHeader>
+            <CardContent><Skeleton className="h-64 w-full" /></CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main component ────────────────────────────────────────── */
+export default function Dashboard() {
+  const { data: stats, isLoading, error } = useDashboardStats();
+
+  if (isLoading) return <DashboardSkeleton />;
+
   if (error) {
     return (
       <div className="container mx-auto p-6">
         <Card className="border-destructive">
           <CardHeader>
             <CardTitle className="text-destructive">Erreur</CardTitle>
-            <CardDescription>{error}</CardDescription>
+            <CardDescription>{error.message}</CardDescription>
           </CardHeader>
         </Card>
       </div>
     );
   }
 
-  // Si aucune statistique n'est disponible
-  if (!stats) {
-    return null;
-  }
+  if (!stats) return null;
+
+  /* ── derived data ── */
+
+  // Cash-flow bar data: income vs expense (by category, simplified as totals)
+  const cashFlowData = [
+    {
+      name: 'Recettes',
+      value: stats.summary.totalIncomes,
+      fill: '#10b981',
+    },
+    {
+      name: 'Dépenses',
+      value: stats.summary.totalExpenses,
+      fill: '#f43f5e',
+    },
+    {
+      name: 'Apports',
+      value: stats.summary.totalContributions,
+      fill: '#6366f1',
+    },
+    {
+      name: 'Dettes',
+      value: stats.summary.totalDebts,
+      fill: '#f59e0b',
+    },
+  ];
+
+  // Expense pie
+  const expensePieData = Object.entries(stats.expenses.byCategory).map(
+    ([cat, amt], i) => ({
+      name: EXPENSE_LABELS[cat] ?? cat,
+      value: amt as number,
+      color: EXPENSE_COLORS[i % EXPENSE_COLORS.length],
+    }),
+  );
+
+  // Income pie
+  const incomePieData = Object.entries(stats.incomes.byCategory).map(
+    ([cat, amt], i) => ({
+      name: INCOME_LABELS[cat] ?? cat,
+      value: amt as number,
+      color: INCOME_COLORS[i % INCOME_COLORS.length],
+    }),
+  );
+
+  // Business bar
+  const businessBarData = stats.businesses.map((b: DashboardBusiness) => ({
+    name: b.name.length > 12 ? b.name.slice(0, 12) + '…' : b.name,
+    Revenus: b.revenue,
+    Dépenses: b.expenses,
+    Profit: b.profit,
+  }));
+
+  // Debt radial
+  const debtRadialData = [
+    { name: 'En attente', value: stats.debts.byStatus.pending, fill: '#f59e0b' },
+    { name: 'Payées', value: stats.debts.byStatus.paid, fill: '#10b981' },
+    { name: 'En retard', value: stats.debts.byStatus.overdue, fill: '#f43f5e' },
+  ];
+
+  // Area chart: synthetic monthly from recent records (last 5)
+  const buildAreaData = () => {
+    interface AreaPoint { month: string; Recettes: number; Dépenses: number }
+    const map = new Map<string, AreaPoint>();
+
+    const addEntry = (date: string, incAmt: number, expAmt: number) => {
+      const d = new Date(date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' });
+      const existing = map.get(key) ?? { month: label, Recettes: 0, Dépenses: 0 };
+      existing.Recettes += incAmt;
+      existing.Dépenses += expAmt;
+      map.set(key, existing);
+    };
+
+    stats.incomes.recent.forEach((r) => addEntry(r.date, r.amount, 0));
+    stats.expenses.recent.forEach((e) => addEntry(e.date, 0, e.amount));
+
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, v]) => v);
+  };
+
+  const areaData = buildAreaData();
+
+  const netPositive = stats.summary.netBalance >= 0;
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* En-tête du dashboard */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Vue d'ensemble de vos finances
-        </p>
+      {/* Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Vue d'ensemble de vos finances
+          </p>
+        </div>
+        <div
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border ${netPositive
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-red-200 bg-red-50 text-red-700'
+            }`}
+        >
+          {netPositive ? (
+            <ArrowUpRight className="h-4 w-4" />
+          ) : (
+            <ArrowDownRight className="h-4 w-4" />
+          )}
+          Balance : {fmt(stats.summary.netBalance)}
+        </div>
       </div>
 
-      {/* Cartes de résumé financier */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Carte: Balance nette */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Balance Nette
-            </CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${stats.summary.netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {formatCurrency(stats.summary.netBalance)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Recettes - Dépenses - Apports
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Carte: Total Recettes */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Recettes
-            </CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(stats.summary.totalIncomes)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {stats.counts.incomes} recette{stats.counts.incomes > 1 ? 's' : ''}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Carte: Total Dépenses */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Dépenses
-            </CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {formatCurrency(stats.summary.totalExpenses)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {stats.counts.expenses} dépense{stats.counts.expenses > 1 ? 's' : ''}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Carte: Total Dettes */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Dettes Actives
-            </CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(stats.summary.totalDebts)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {stats.debts.byStatus.pending} en attente
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Carte: Total Apports */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Apports
-            </CardTitle>
-            <PiggyBank className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(stats.summary.totalContributions)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {stats.counts.contributions} apport{stats.counts.contributions > 1 ? 's' : ''}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Carte: Revenus Business */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Revenus Business
-            </CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {formatCurrency(stats.summary.totalBusinessRevenue)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Profit: {formatCurrency(stats.summary.totalBusinessProfit)}
-            </p>
-          </CardContent>
-        </Card>
+      {/* ── KPI Cards ── */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {[
+          {
+            title: 'Balance Nette',
+            value: fmt(stats.summary.netBalance),
+            sub: 'Recettes − Dépenses − Apports',
+            icon: <Wallet className="h-4 w-4" />,
+            color: netPositive ? 'text-emerald-600' : 'text-red-600',
+          },
+          {
+            title: 'Total Recettes',
+            value: fmt(stats.summary.totalIncomes),
+            sub: `${stats.counts.incomes} recette${stats.counts.incomes > 1 ? 's' : ''}`,
+            icon: <TrendingUp className="h-4 w-4 text-emerald-600" />,
+            color: 'text-emerald-600',
+          },
+          {
+            title: 'Total Dépenses',
+            value: fmt(stats.summary.totalExpenses),
+            sub: `${stats.counts.expenses} dépense${stats.counts.expenses > 1 ? 's' : ''}`,
+            icon: <TrendingDown className="h-4 w-4 text-red-500" />,
+            color: 'text-red-500',
+          },
+          {
+            title: 'Dettes Actives',
+            value: fmt(stats.summary.totalDebts),
+            sub: `${stats.debts.byStatus.pending} en attente`,
+            icon: <CreditCard className="h-4 w-4 text-amber-500" />,
+            color: 'text-amber-500',
+          },
+          {
+            title: 'Total Apports',
+            value: fmt(stats.summary.totalContributions),
+            sub: `${stats.counts.contributions} apport${stats.counts.contributions > 1 ? 's' : ''}`,
+            icon: <PiggyBank className="h-4 w-4 text-violet-500" />,
+            color: 'text-violet-500',
+          },
+          {
+            title: 'Revenus Business',
+            value: fmt(stats.summary.totalBusinessRevenue),
+            sub: `Profit : ${fmt(stats.summary.totalBusinessProfit)}`,
+            icon: <Building2 className="h-4 w-4 text-sky-500" />,
+            color: 'text-sky-500',
+          },
+        ].map((kpi) => (
+          <Card
+            key={kpi.title}
+            className="hover:shadow-md transition-shadow duration-200"
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                {kpi.title}
+              </CardTitle>
+              {kpi.icon}
+            </CardHeader>
+            <CardContent>
+              <div className={`text-xl font-bold ${kpi.color}`}>{kpi.value}</div>
+              <p className="text-xs text-muted-foreground mt-1">{kpi.sub}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Vue graphique synthétique */}
+      {/* ── Row 1: Area + Bar overview ── */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Ratio Recettes vs Dépenses */}
+        {/* Flux de trésorerie Area */}
         <Card>
           <CardHeader>
-            <CardTitle>Flux de trésorerie</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-muted-foreground" />
+              Flux de trésorerie
+            </CardTitle>
             <CardDescription>
-              Comparaison entre vos recettes et vos dépenses
+              Évolution recettes vs dépenses (données récentes)
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Recettes</span>
-              <span className="font-medium text-green-600">
-                {formatCurrency(stats.summary.totalIncomes)}
-              </span>
-            </div>
-            <Progress
-              value={getPercent(
-                stats.summary.totalIncomes,
-                stats.summary.totalIncomes + stats.summary.totalExpenses
-              )}
-              className="h-2"
-            />
-            <div className="flex items-center justify-between text-sm pt-2">
-              <span className="text-muted-foreground">Dépenses</span>
-              <span className="font-medium text-red-600">
-                {formatCurrency(stats.summary.totalExpenses)}
-              </span>
-            </div>
-            <Progress
-              value={getPercent(
-                stats.summary.totalExpenses,
-                stats.summary.totalIncomes + stats.summary.totalExpenses
-              )}
-              className="h-2 bg-red-100"
-            />
-
-            <div className="mt-4 rounded-lg border p-3 flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase text-muted-foreground tracking-wide">
-                  Résumé mensuel
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Solde après dépenses
-                </p>
+          <CardContent>
+            {areaData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <AreaChart data={areaData} margin={{ top: 4, right: 8, bottom: 0, left: 4 }}>
+                  <defs>
+                    <linearGradient id="colorRecettes" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="10%" stopColor="#10b981" stopOpacity={0.3} />
+                      <stop offset="90%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorDepenses" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="10%" stopColor="#f43f5e" stopOpacity={0.3} />
+                      <stop offset="90%" stopColor="#f43f5e" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <YAxis tickFormatter={compactFmt} tick={{ fontSize: 11 }} width={60} />
+                  <Tooltip content={<CurrencyTooltip />} />
+                  <Legend />
+                  <Area
+                    type="monotone"
+                    dataKey="Recettes"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    fill="url(#colorRecettes)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="Dépenses"
+                    stroke="#f43f5e"
+                    strokeWidth={2}
+                    fill="url(#colorDepenses)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-64 flex items-center justify-center text-muted-foreground">
+                Pas encore de données
               </div>
-              <div className={`text-lg font-semibold ${stats.summary.netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(stats.summary.netBalance)}
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Aperçu Business */}
+        {/* Overview bar */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Vue d'ensemble financière</CardTitle>
+            <CardDescription>Comparaison de tous vos flux</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart
+                data={cashFlowData}
+                margin={{ top: 4, right: 8, bottom: 0, left: 4 }}
+                barSize={40}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tickFormatter={compactFmt} tick={{ fontSize: 11 }} width={60} />
+                <Tooltip content={<CurrencyTooltip />} />
+                <Bar dataKey="value" name="Montant" radius={[6, 6, 0, 0]}>
+                  {cashFlowData.map((entry, i) => (
+                    <Cell key={i} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Row 2: Pie charts ── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Expense pie */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Répartition des dépenses</CardTitle>
+            <CardDescription>Par catégorie</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {expensePieData.length > 0 ? (
+              <div className="flex flex-col md:flex-row items-center gap-4">
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={expensePieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={90}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {expensePieData.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number) => [fmt(value), 'Montant']}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex flex-col gap-1.5 min-w-[140px]">
+                  {expensePieData.map((e, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                        style={{ background: e.color }}
+                      />
+                      <span className="text-muted-foreground truncate">{e.name}</span>
+                      <span className="ml-auto font-medium">{compactFmt(e.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="h-56 flex items-center justify-center text-muted-foreground">
+                Pas encore de dépenses
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Income pie */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Répartition des recettes</CardTitle>
+            <CardDescription>Par catégorie</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {incomePieData.length > 0 ? (
+              <div className="flex flex-col md:flex-row items-center gap-4">
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie
+                      data={incomePieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={90}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {incomePieData.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number) => [fmt(value), 'Montant']}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex flex-col gap-1.5 min-w-[140px]">
+                  {incomePieData.map((e, i) => (
+                    <div key={i} className="flex items-center gap-2 text-xs">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                        style={{ background: e.color }}
+                      />
+                      <span className="text-muted-foreground truncate">{e.name}</span>
+                      <span className="ml-auto font-medium">{compactFmt(e.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="h-56 flex items-center justify-center text-muted-foreground">
+                Pas encore de recettes
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Row 3: Debt radial + Business grouped bar ── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Debt radial */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Statut des dettes</CardTitle>
+            <CardDescription>Répartition par état</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center">
+            {stats.counts.debts > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={200}>
+                  <RadialBarChart
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={30}
+                    outerRadius={90}
+                    data={debtRadialData}
+                    startAngle={90}
+                    endAngle={-270}
+                  >
+                    <RadialBar
+                      dataKey="value"
+                      cornerRadius={6}
+                      background={{ fill: '#f1f5f9' }}
+                      label={{ position: 'insideStart', fill: '#fff', fontSize: 11 }}
+                    />
+                    <Tooltip
+                      formatter={(value: number, name: string) => [value, name]}
+                    />
+                  </RadialBarChart>
+                </ResponsiveContainer>
+                <div className="flex gap-6 mt-2">
+                  {debtRadialData.map((d, i) => (
+                    <div key={i} className="flex flex-col items-center text-xs">
+                      <span
+                        className="h-3 w-3 rounded-full mb-1"
+                        style={{ background: d.fill }}
+                      />
+                      <span className="text-muted-foreground">{d.name}</span>
+                      <span className="font-bold text-base">{d.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="h-48 flex items-center justify-center text-muted-foreground">
+                Aucune dette enregistrée
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Business bar */}
         <Card>
           <CardHeader>
             <CardTitle>Performance des entreprises</CardTitle>
-            <CardDescription>
-              Revenus, dépenses et profits par business
-            </CardDescription>
+            <CardDescription>Revenus, dépenses et profit</CardDescription>
           </CardHeader>
           <CardContent>
-            {stats.businesses.length > 0 ? (
-              <div className="space-y-4">
-                {stats.businesses.map((business) => (
+            {businessBarData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart
+                  data={businessBarData}
+                  margin={{ top: 4, right: 8, bottom: 0, left: 4 }}
+                  barGap={4}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tickFormatter={compactFmt} tick={{ fontSize: 11 }} width={60} />
+                  <Tooltip content={<CurrencyTooltip />} />
+                  <Legend />
+                  <Bar dataKey="Revenus" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Dépenses" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Profit" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-56 flex items-center justify-center text-muted-foreground">
+                Aucune entreprise enregistrée
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Row 4: Recent activities ── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Recent expenses */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Dépenses récentes</CardTitle>
+            <CardDescription>5 dernières entrées</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {stats.expenses.recent.length > 0 ? (
+              <div className="space-y-3">
+                {stats.expenses.recent.map((e, i) => (
                   <div
-                    key={business.id}
-                    className="space-y-2 rounded-lg border p-3"
+                    key={e.id}
+                    className="flex items-center justify-between py-2 border-b last:border-0"
                   >
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                        {business.name}
-                      </p>
-                      <span
-                        className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                          business.profit >= 0
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                        style={{ background: EXPENSE_COLORS[i % EXPENSE_COLORS.length] }}
                       >
-                        {business.profit >= 0 ? 'Profit' : 'Perte'}
-                      </span>
+                        {e.title.slice(0, 1).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium leading-none">{e.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 capitalize">
+                          {EXPENSE_LABELS[e.category] ?? e.category} ·{' '}
+                          {new Date(e.date).toLocaleDateString('fr-FR')}
+                        </p>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div>
-                        <p className="text-muted-foreground">Revenus</p>
-                        <p className="font-semibold text-green-600">
-                          {formatCurrency(business.revenue)}
-                        </p>
+                    <span className="text-sm font-semibold text-red-500">
+                      -{fmt(e.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-8">Aucune dépense récente</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent incomes */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Recettes récentes</CardTitle>
+            <CardDescription>5 dernières entrées</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {stats.incomes.recent.length > 0 ? (
+              <div className="space-y-3">
+                {stats.incomes.recent.map((inc, i) => (
+                  <div
+                    key={inc.id}
+                    className="flex items-center justify-between py-2 border-b last:border-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                        style={{ background: INCOME_COLORS[i % INCOME_COLORS.length] }}
+                      >
+                        {inc.title.slice(0, 1).toUpperCase()}
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Dépenses</p>
-                        <p className="font-semibold text-red-600">
-                          {formatCurrency(business.expenses)}
+                        <p className="text-sm font-medium leading-none">{inc.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 capitalize">
+                          {INCOME_LABELS[inc.category] ?? inc.category} ·{' '}
+                          {new Date(inc.date).toLocaleDateString('fr-FR')}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-muted-foreground">Résultat</p>
-                        <p
-                          className={`font-semibold ${
-                            business.profit >= 0
-                              ? 'text-green-600'
-                              : 'text-red-600'
+                    </div>
+                    <span className="text-sm font-semibold text-emerald-600">
+                      +{fmt(inc.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-8">Aucune recette récente</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Row 5: Recent debts + contributions ── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Debts */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Dettes récentes</CardTitle>
+            <CardDescription>5 dernières dettes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {stats.debts.recent.length > 0 ? (
+              <div className="space-y-3">
+                {stats.debts.recent.map((d) => (
+                  <div
+                    key={d.id}
+                    className="flex items-center justify-between py-2 border-b last:border-0"
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{d.title}</p>
+                      {d.dueDate && (
+                        <p className="text-xs text-muted-foreground">
+                          Échéance : {new Date(d.dueDate).toLocaleDateString('fr-FR')}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-sm font-semibold text-amber-600">
+                        {fmt(d.amount)}
+                      </span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${d.status === 'paid'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : d.status === 'overdue'
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-amber-100 text-amber-700'
                           }`}
-                        >
-                          {formatCurrency(business.profit)}
-                        </p>
-                      </div>
+                      >
+                        {d.status === 'paid'
+                          ? 'Payée'
+                          : d.status === 'overdue'
+                            ? 'En retard'
+                            : 'En attente'}
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-muted-foreground text-center py-8">
-                Aucune entreprise enregistrée
-              </p>
+              <p className="text-muted-foreground text-center py-8">Aucune dette récente</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Contributions */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Apports récents</CardTitle>
+            <CardDescription>5 derniers apports</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {stats.contributions.recent.length > 0 ? (
+              <div className="space-y-3">
+                {stats.contributions.recent.map((c, i) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center justify-between py-2 border-b last:border-0"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                        style={{ background: '#8b5cf6' }}
+                      >
+                        {c.title.slice(0, 1).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium leading-none">{c.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 capitalize">
+                          {c.category}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className="text-sm font-semibold text-violet-600">
+                        {fmt(c.amount)}
+                      </span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${c.status === 'completed'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : c.status === 'cancelled'
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-amber-100 text-amber-700'
+                          }`}
+                      >
+                        {c.status === 'completed'
+                          ? 'Complété'
+                          : c.status === 'cancelled'
+                            ? 'Annulé'
+                            : 'En attente'}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-8">Aucun apport récent</p>
             )}
           </CardContent>
         </Card>
       </div>
-
-      {/* Section: Dépenses récentes */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Dépenses Récentes</CardTitle>
-          <CardDescription>
-            Vos 5 dernières dépenses
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {stats.expenses.recent.length > 0 ? (
-            <div className="space-y-4">
-              {stats.expenses.recent.map((expense) => (
-                <div key={expense.id} className="flex items-center justify-between border-b pb-4 last:border-0">
-                  <div>
-                    <p className="font-medium">{expense.title}</p>
-                    <p className="text-sm text-muted-foreground capitalize">
-                      {expense.category}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-red-600">
-                      {formatCurrency(expense.amount)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(expense.date).toLocaleDateString('fr-FR')}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-8">
-              Aucune dépense récente
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Section: Répartition par catégorie (dépenses & recettes) */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Dépenses par catégorie */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Répartition des dépenses</CardTitle>
-            <CardDescription>
-              Montants dépensés par catégorie
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {Object.keys(stats.expenses.byCategory).length > 0 ? (
-              Object.entries(stats.expenses.byCategory).map(
-                ([category, amount]) => {
-                  const percent = getPercent(
-                    amount,
-                    stats.expenses.total
-                  );
-                  return (
-                    <div key={category} className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="capitalize text-muted-foreground">
-                          {category}
-                        </span>
-                        <span className="font-medium">
-                          {formatCurrency(amount)}{' '}
-                          <span className="text-xs text-muted-foreground">
-                            ({percent.toFixed(1)}%)
-                          </span>
-                        </span>
-                      </div>
-                      <Progress value={percent} className="h-2" />
-                    </div>
-                  );
-                }
-              )
-            ) : (
-              <p className="text-muted-foreground text-center py-4">
-                Pas encore de dépenses catégorisées
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Recettes par catégorie */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Répartition des recettes</CardTitle>
-            <CardDescription>
-              Montants reçus par catégorie
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {Object.keys(stats.incomes.byCategory).length > 0 ? (
-              Object.entries(stats.incomes.byCategory).map(
-                ([category, amount]) => {
-                  const percent = getPercent(
-                    amount,
-                    stats.incomes.total
-                  );
-                  return (
-                    <div key={category} className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="capitalize text-muted-foreground">
-                          {category}
-                        </span>
-                        <span className="font-medium">
-                          {formatCurrency(amount)}{' '}
-                          <span className="text-xs text-muted-foreground">
-                            ({percent.toFixed(1)}%)
-                          </span>
-                        </span>
-                      </div>
-                      <Progress
-                        value={percent}
-                        className="h-2 bg-emerald-100"
-                      />
-                    </div>
-                  );
-                }
-              )
-            ) : (
-              <p className="text-muted-foreground text-center py-4">
-                Pas encore de recettes catégorisées
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Section: Recettes récentes */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recettes Récentes</CardTitle>
-          <CardDescription>
-            Vos 5 dernières recettes
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {stats.incomes.recent.length > 0 ? (
-            <div className="space-y-4">
-              {stats.incomes.recent.map((income) => (
-                <div key={income.id} className="flex items-center justify-between border-b pb-4 last:border-0">
-                  <div>
-                    <p className="font-medium">{income.title}</p>
-                    <p className="text-sm text-muted-foreground capitalize">
-                      {income.category}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-green-600">
-                      {formatCurrency(income.amount)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(income.date).toLocaleDateString('fr-FR')}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-8">
-              Aucune recette récente
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Section: Dettes par statut */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Statut des Dettes</CardTitle>
-          <CardDescription>
-            Répartition de vos dettes
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="text-center p-4 border rounded-lg">
-              <p className="text-2xl font-bold">{stats.debts.byStatus.pending}</p>
-              <p className="text-sm text-muted-foreground">En attente</p>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <p className="text-2xl font-bold text-green-600">{stats.debts.byStatus.paid}</p>
-              <p className="text-sm text-muted-foreground">Payées</p>
-            </div>
-            <div className="text-center p-4 border rounded-lg">
-              <p className="text-2xl font-bold text-red-600">{stats.debts.byStatus.overdue}</p>
-              <p className="text-sm text-muted-foreground">En retard</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

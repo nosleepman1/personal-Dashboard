@@ -22,47 +22,50 @@ export const API_ENDPOINTS = {
     REFRESH: '/api/auth/refresh',
     LOGOUT: '/api/auth/logout',
   },
-  
+
   // Utilisateurs
   USERS: {
     PROFILE: '/api/users/profile',
   },
-  
+
   // Dettes
   DEBTS: {
     BASE: '/api/debts',
     BY_ID: (id: string) => `/api/debts/${id}`,
   },
-  
+
   // Dépenses
   EXPENSES: {
     BASE: '/api/expenses',
     BY_ID: (id: string) => `/api/expenses/${id}`,
   },
-  
+
   // Recettes
   INCOMES: {
     BASE: '/api/incomes',
     BY_ID: (id: string) => `/api/incomes/${id}`,
   },
-  
+
   // Entreprises
   BUSINESSES: {
     BASE: '/api/businesses',
     BY_ID: (id: string) => `/api/businesses/${id}`,
+    TRANSACTIONS: (businessId: string) => `/api/businesses/${businessId}/transactions`,
+    TRANSACTION_BY_ID: (businessId: string, txId: string) =>
+      `/api/businesses/${businessId}/transactions/${txId}`,
   },
-  
+
   // Apports
   CONTRIBUTIONS: {
     BASE: '/api/contributions',
     BY_ID: (id: string) => `/api/contributions/${id}`,
   },
-  
+
   // Dashboard
   DASHBOARD: {
     BASE: '/api/dashboard',
   },
-  
+
   // Santé
   HEALTH: '/api/health',
 } as const;

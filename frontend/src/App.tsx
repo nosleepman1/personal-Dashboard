@@ -15,6 +15,7 @@ import Incomes from '@/pages/Incomes';
 import Debts from '@/pages/Debts';
 import Contributions from '@/pages/Contributions';
 import Businesses from '@/pages/Businesses';
+import BusinessDetail from '@/pages/BusinessDetail';
 import Profile from '@/pages/Profile';
 
 /**
@@ -32,10 +33,10 @@ function App() {
         <Routes>
           {/* Route publique: Page de connexion */}
           <Route path="/login" element={<Login />} />
-          
+
           {/* Route publique: Page d'inscription */}
           <Route path="/register" element={<Register />} />
-          
+
           {/* Routes protégées: Nécessitent une authentification */}
           {/* Toutes ces routes sont enveloppées dans ProtectedRoute et MainLayout */}
           <Route
@@ -99,6 +100,16 @@ function App() {
             }
           />
           <Route
+            path="/businesses/:id"
+            element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <BusinessDetail />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/profile"
             element={
               <ProtectedRoute>
@@ -108,10 +119,10 @@ function App() {
               </ProtectedRoute>
             }
           />
-          
+
           {/* Route par défaut: Redirige vers /dashboard si connecté, sinon /login */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          
+
           {/* Route 404: Redirige vers /dashboard */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
