@@ -8,7 +8,7 @@ const getDashboardStats = async (req, res) => {
     try {
         const userId = req.user._id;
         const { startDate, endDate } = req.query;
-        
+
         const dateFilter = {};
         if (startDate || endDate) {
             dateFilter.date = {};
@@ -32,7 +32,7 @@ const getDashboardStats = async (req, res) => {
         const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
         const totalIncomes = incomes.reduce((sum, inc) => sum + inc.amount, 0);
         const totalContributions = contributions.reduce((sum, cont) => sum + cont.amount, 0);
-        
+
         // Business totals
         const businessStats = businesses.map(business => ({
             id: business._id,
@@ -45,7 +45,7 @@ const getDashboardStats = async (req, res) => {
         const totalBusinessExpenses = businesses.reduce((sum, biz) => sum + biz.totalExpenses, 0);
 
         // Net balance
-        const netBalance = totalIncomes - totalExpenses - totalContributions;
+        const netBalance = totalIncomes - totalExpenses - totalContributions - totalDebts;
 
         // Statistics by category
         const expensesByCategory = {};

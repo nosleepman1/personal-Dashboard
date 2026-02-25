@@ -6,6 +6,12 @@ const createDebt = async (req, res) => {
             ...req.body,
             user: req.user._id
         });
+
+        if (debt.status === 'paid') {
+            const user = await User.findById(req.user._id);
+            user.netBalance -= debt.amount;
+        }
+
         await debt.save();
 
         res.status(201).json({ message: 'Debt created successfully', debt });
@@ -19,7 +25,7 @@ const getDebts = async (req, res) => {
     try {
         const { status, category } = req.query;
         const filter = { user: req.user._id };
-        
+
         if (status) filter.status = status;
         if (category) filter.category = category;
 
@@ -51,6 +57,13 @@ const updateDebt = async (req, res) => {
             req.body,
             { new: true, runValidators: true }
         );
+
+        if (debt.$assertPopulatedstatus === 'paid') {
+            //enlever cette somme de la balance nette
+            const user = await User.findById(req.user._id);
+            user.netBalance -= debt.amount;
+            await user.save();
+        }
 
         if (!debt) {
             return res.status(404).json({ error: 'Debt not found' });

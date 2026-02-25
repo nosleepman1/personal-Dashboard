@@ -13,26 +13,23 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import type { LoginRequest } from '@/types';
 
-/**
- * Composant de la page de connexion
- * Gère le formulaire de connexion et l'appel à l'API
- */
+
 export default function Login() {
   // Hook de navigation pour rediriger après la connexion
   const navigate = useNavigate();
-  
+
   // Récupère les méthodes d'authentification depuis le contexte
   const { login } = useAuth();
-  
+
   // État du formulaire
   const [formData, setFormData] = useState<LoginRequest>({
     email: '',
     password: '',
   });
-  
+
   // État de chargement - true pendant la requête API
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // État d'erreur - message d'erreur à afficher
   const [error, setError] = useState<string>('');
 
@@ -42,6 +39,7 @@ export default function Login() {
    * 
    * @param e - Événement de changement d'input
    */
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -67,7 +65,7 @@ export default function Login() {
       // Appelle la méthode login du contexte d'authentification
       // Cette méthode appelle POST /api/auth/login
       await login(formData);
-      
+
       // En cas de succès, redirige vers le dashboard
       navigate('/dashboard');
     } catch (err: any) {
@@ -98,7 +96,7 @@ export default function Login() {
                 {error}
               </div>
             )}
-            
+
             {/* Champ email */}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -113,7 +111,7 @@ export default function Login() {
                 disabled={isLoading}
               />
             </div>
-            
+
             {/* Champ mot de passe */}
             <div className="space-y-2">
               <Label htmlFor="password">Mot de passe</Label>
@@ -129,8 +127,8 @@ export default function Login() {
               />
             </div>
           </CardContent>
-          
-          <CardFooter className="flex flex-col space-y-4">
+
+          <CardFooter className="flex flex-col space-y-4 my-4">
             {/* Bouton de connexion */}
             <Button
               type="submit"
@@ -139,7 +137,7 @@ export default function Login() {
             >
               {isLoading ? 'Connexion...' : 'Se connecter'}
             </Button>
-            
+
             {/* Lien vers la page d'inscription */}
             <div className="text-sm text-center text-muted-foreground">
               Pas encore de compte ?{' '}
